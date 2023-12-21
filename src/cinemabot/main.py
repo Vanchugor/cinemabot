@@ -3,13 +3,21 @@ import logging
 import os
 import sys
 
-from cinemabot.bot.echo_bot import run_echo_bot
+from aiogram import Dispatcher
+
+from cinemabot.bot import CinemaBot
+from cinemabot.repository import DBConnector
 
 
 def main():
     TOKEN = os.getenv("CINEMA_BOT_TOKEN")
+    dp = Dispatcher()
+
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
-    asyncio.run(run_echo_bot(TOKEN))
+
+    with DBConnector() as database:
+        bot = CinemaBot(dp, database)
+        asyncio.run(bot.run(TOKEN))
 
 
 if __name__ == '__main__':
