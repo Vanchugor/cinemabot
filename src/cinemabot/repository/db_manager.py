@@ -33,11 +33,11 @@ class DBManager:
         id INTEGER PRIMARY KEY,
         title TEXT NOT NULL,
         genre TEXT NOT NULL,
-        year INTEGER NOT NULL,
+        year TEXT NOT NULL,
         links TEXT NOT NULL,
         info TEXT NOT NULL,
-        rate INTEGER NOT NULL,
-        poster BLOB NOT NULL
+        rate TEXT NOT NULL,
+        poster TEXT NOT NULL
         )
         ''')
 
@@ -92,11 +92,13 @@ class DBManager:
         self.connection.commit()
         return self.cursor.fetchall()
 
-    def insert_film(self, title: str, genre: str, year: str, links: str, info: str, rate: str, poster: str):
+    def insert_film(self, *args):
+        norm = ["None" if arg is None else arg for arg in args]
+
         self.cursor.execute('''
         INSERT INTO Films (title, genre, year, links, info, rate, poster)
         VALUES(?, ?, ?, ?, ?, ?, ?) 
-        ''', (title, genre, year, links, info, rate, poster))
+        ''', norm)
 
         self.connection.commit()
         return self.cursor.lastrowid

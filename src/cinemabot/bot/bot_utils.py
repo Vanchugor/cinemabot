@@ -1,4 +1,5 @@
 import inspect
+import json
 import re
 import typing as tp
 
@@ -21,7 +22,49 @@ class StartCommandUtils:
 class FindCommandUtils:
     @staticmethod
     def make_find_reply(info: FilmInfo) -> str:
-        return ", ".join(info.data)
+        info_text = FindCommandUtils.clean_text(info.info)
+        info_text = FindCommandUtils.replace_if_film_is_absent(info_text) + "\n\n"
+
+        year_text = "" if not info.year else f" ({info.year.strip()})"
+        poster_text = "" if not info.poster else \
+            hlink("Посмотреть постер", f"https://ru.wikipedia.org{info.poster}") + "\n\n"
+        rate_text = "" if not info.rate else f"Рейтинг: {info.rate.strip()}/10" + "\n"
+
+        genre_list = [FindCommandUtils.clean_text(g) for g in json.loads(info.genre)]
+        genre_text = ""
+        if genre_list:
+            genre_text = "Жанр" + ("ы: " if len(genre_list) > 1 else ": ")
+            genre_text += ", ".join(genre_list) + "\n"
+
+        links_dict: dict[str, str] = json.loads(info.links)
+        links_text = hbold("К сожалению, ни в одном онлайн-кинотеатре нет этого фильма.")
+        if links_dict:
+            links_text = hbold("Ссылки на онлайн-кинотеатры \n")
+            for service, link in links_dict.items():
+                links_text += f"{service}: {hlink('перейти', link)}" + "\n"
+
+        result = hbold(info.title.strip() + year_text) + "\n" + \
+                 f"{genre_text}" + \
+                 f"{rate_text}" + \
+                 f"{poster_text}" + \
+                 f"{info_text}" + \
+                 f"{links_text}"
+
+        return result
+
+    @staticmethod
+    def clean_text(text: str):
+        text = text.replace(u'\xa0', u' ')
+        text, _ = re.subn(r"\[\d+]", "", text.strip())
+        return text
+
+    @staticmethod
+    def replace_if_film_is_absent(text: str):
+        if text == "В Википедии нет статьи с таким названием.":
+            return "В русскоязычной Википедии нет статьи с таким названием. " \
+                   "Вероятно вы неправильно ввели название."
+
+        return text
 
 
 class HelpCommandUtils:

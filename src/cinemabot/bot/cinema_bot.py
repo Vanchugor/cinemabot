@@ -19,7 +19,7 @@ class CinemaBot:
         self.scraper: FilmScraper = FilmScraper(session)
         self.help = HelpCommandUtils.make_help_list(self)
 
-        self.dp.message(F.text.regexp(r"^[a-zA-Z0-9а-яА-Я\s\.\?!,']+$"))(self.command_find_handler)
+        self.dp.message(F.text.regexp(r"^[\w\s\.\?!,';:\$%]+$"))(self.command_find_handler)
         self.dp.message(Command("find"))(self.command_find_handler)
         self.dp.message(Command(re.compile(r"give_(\d+)")))(self.command_give_handler)
         self.dp.message(Command("help"))(self.command_help_handler)
@@ -39,52 +39,55 @@ class CinemaBot:
         :return: None
         """
         user_id = message.from_user.id
-        film_to_find = message.text.removeprefix("/find").strip()
-        if not film_to_find:
+        input_title = message.text.removeprefix("/find").strip()
+        if not input_title:
             await message.answer(ErrorUtils.make_i_expected_reply("название фильма..."))
+            return
+
+        # TODO Add similar titles handling without going to Google
+        wiki_title = await self.scraper.get_wiki_title(input_title)
+        film_list = self.db_manager.find_film_by_name(wiki_title)
+        if not film_list:
+            info = await self.scraper.lookup(wiki_title, normalize=False)
+            inserted_film_id = self.db_manager.insert_film(
+                info.title,
+                info.genre,
+                info.year,
+                info.links,
+                info.info,
+                info.rate,
+                info.poster
+            )
+            await self.reply_and_create_request(message, info, film_id=inserted_film_id, user_id=user_id)
+            return
+
+        film = film_list[0]
+        film_id = int(film[0])
+        requests = self.db_manager.find_requests_by_film_id_and_user_id(film_id, user_id)
+        if not requests:  # Film could have been added by another user
+            info = FilmInfo(
+                title=film[1],
+                genre=film[2],
+                year=film[3],
+                links=film[4],
+                info=film[5],
+                rate=film[6],
+                poster=film[7]
+            )
+            await self.reply_and_create_request(message, info, film_id=film_id, user_id=user_id)
         else:
-            film_list = self.db_manager.find_film_by_name(film_to_find)
-            if not film_list:
-                info = self.scraper.lookup(film_to_find)
-                inserted_film_id = self.db_manager.insert_film(
-                    info.title,
-                    info.genre,
-                    info.year,
-                    info.links,
-                    info.info,
-                    info.rate,
-                    info.poster
-                )
-                await self.create_new_request(message, info, film_id=inserted_film_id, user_id=user_id)
-            else:
-                film = film_list[0]
-                film_id = int(film[0])
+            request = requests[0]
+            message_id = int(request[3])
+            chat_id = message.chat.id
 
-                requests = self.db_manager.find_requests_by_film_id_and_user_id(film_id, message.from_user.id)
-                if not requests:
-                    info = FilmInfo(
-                        title=film[1],
-                        genre=film[2],
-                        year=str(film[3]),
-                        links=film[4],
-                        info=film[5],
-                        rate=str(film[6]),
-                        poster=film[7]
-                    )
-                    await self.create_new_request(message, info, film_id=film_id, user_id=user_id)
-                else:
-                    request = requests[0]
-                    message_id = int(request[3])
-                    chat_id = message.chat.id
+            self.db_manager.insert_request(
+                film_id,
+                user_id,
+                message_id
+            )
+            await self.bot.forward_message(chat_id, chat_id, message_id)
 
-                    self.db_manager.insert_request(
-                        film_id,
-                        user_id,
-                        message_id
-                    )
-                    await self.bot.forward_message(chat_id, chat_id, message_id)
-
-    async def create_new_request(self, message: Message, info: FilmInfo, film_id: int, user_id: int):
+    async def reply_and_create_request(self, message: Message, info: FilmInfo, film_id: int, user_id: int):
         result_message = await message.answer(FindCommandUtils.make_find_reply(info))
         self.db_manager.insert_request(
             film_id,
