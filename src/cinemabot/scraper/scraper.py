@@ -27,8 +27,12 @@ class FilmInfo:
 class FilmScraper:
     def __init__(self, session: ClientSession, language: str = "RU") -> None:
         self.session = session
+        self.async_searchers_by_wiki_title = [
+            self.get_data_from_wiki,
+            self.get_links_and_rate
+        ]
 
-    async def get_wiki_title(self, film_title) -> str:
+    async def get_wiki_title(self, film_title, *args) -> str:
         query = ScraperUtils.make_google_query(film_title, suffix=" фильм википедия")
         headers = {"User-Agent": DEFAULT_USER_AGENT}  # TODO Добавить заголовок языка
         async with self.session.get(query, headers=headers) as response:
@@ -39,7 +43,7 @@ class FilmScraper:
             header = first_block_tag.find("h3")
             return header.text.removesuffix("- Википедия").strip()
 
-    async def get_data_from_wiki(self, wiki_title: str) -> tuple:
+    async def get_data_from_wiki(self, wiki_title: str, *args) -> dict[str, str | None]:
         genre = []
         year = None
         info = None
@@ -75,9 +79,9 @@ class FilmScraper:
                     if year_row_header:
                         year = year_row_header.find_next("td").text
 
-            return genre, year, info, poster
+            return {"genre": genre, "year": year, "info": info, "poster": poster}
 
-    async def get_links_and_rate(self, wiki_title: str) -> tuple:
+    async def get_links_and_rate(self, wiki_title: str, *args) -> dict[str, str | None]:
         links = None
         rate = None
 
@@ -106,24 +110,16 @@ class FilmScraper:
             if rate_block:
                 rate = rate_block.find("span").find("span").text
 
-        return links, rate
+        return {"links": links, "rate": rate}
 
-    async def lookup(self, film_title: str, normalize: bool = True) -> FilmInfo:
+    async def lookup(self, film_title: str, normalize: bool = True) -> dict[str, str | None]:
         if normalize:
             wiki_title = await self.get_wiki_title(film_title)
         else:
             wiki_title = film_title
 
-        genre, year, info, poster = await self.get_data_from_wiki(wiki_title)
-        links, rate = await self.get_links_and_rate(wiki_title)
+        result_dict = {"title": wiki_title}
+        for searcher in self.async_searchers_by_wiki_title:
+            result_dict.update(await searcher(wiki_title))
 
-        film_info = [
-            wiki_title,
-            genre,
-            year,
-            links,
-            info,
-            rate,
-            poster
-        ]
-        return FilmInfo(*film_info)
+        return result_dict

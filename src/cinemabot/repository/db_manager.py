@@ -92,8 +92,10 @@ class DBManager:
         self.connection.commit()
         return self.cursor.fetchall()
 
-    def insert_film(self, *args):
-        norm = ["None" if arg is None else arg for arg in args]
+    def insert_film(self, info: dict[str, str | None]):
+        column_list = ["title", "genre", "year", "links", "info", "rate", "poster"]
+        norm = [info[col] if col in info else "None" for col in column_list]
+        norm = ["None" if el is None else el for el in norm]
 
         self.cursor.execute('''
         INSERT INTO Films (title, genre, year, links, info, rate, poster)

@@ -21,29 +21,29 @@ class StartCommandUtils:
 
 class FindCommandUtils:
     @staticmethod
-    def make_find_reply(info: FilmInfo) -> str:
-        info_text = FindCommandUtils.clean_text(info.info)
+    def make_find_reply(info_dict: dict[str, str | None]) -> str:
+        info_text = FindCommandUtils.clean_text(info_dict["info"])
         info_text = FindCommandUtils.replace_if_film_is_absent(info_text) + "\n\n"
 
-        year_text = "" if not info.year else f" ({info.year.strip()})"
-        poster_text = "" if not info.poster else \
-            hlink("Посмотреть постер", f"https://ru.wikipedia.org{info.poster}") + "\n\n"
-        rate_text = "" if not info.rate else f"Рейтинг: {info.rate.strip()}/10" + "\n"
+        year_text = "" if not info_dict["year"] else f" ({info_dict['year'].strip()})"
+        poster_text = "" if not info_dict["poster"] else \
+            hlink("Посмотреть постер", f"https://ru.wikipedia.org{info_dict['poster']}") + "\n\n"
+        rate_text = "" if not info_dict['rate'] else f"Рейтинг: {info_dict['rate'].strip()}/10" + "\n"
 
-        genre_list = [FindCommandUtils.clean_text(g) for g in json.loads(info.genre)]
+        genre_list = [FindCommandUtils.clean_text(g) for g in json.loads(info_dict["genre"])]
         genre_text = ""
         if genre_list:
             genre_text = "Жанр" + ("ы: " if len(genre_list) > 1 else ": ")
             genre_text += ", ".join(genre_list) + "\n"
 
-        links_dict: dict[str, str] = json.loads(info.links)
+        links_dict: dict[str, str] = json.loads(info_dict["links"])
         links_text = hbold("К сожалению, ни в одном онлайн-кинотеатре нет этого фильма.")
         if links_dict:
             links_text = hbold("Ссылки на онлайн-кинотеатры \n")
             for service, link in links_dict.items():
                 links_text += f"{service}: {hlink('перейти', link)}" + "\n"
 
-        result = hbold(info.title.strip() + year_text) + "\n" + \
+        result = hbold(info_dict["title"].strip() + year_text) + "\n" + \
                  f"{genre_text}" + \
                  f"{rate_text}" + \
                  f"{poster_text}" + \

@@ -1,5 +1,3 @@
-import re
-
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart, Command
@@ -49,15 +47,7 @@ class CinemaBot:
         film_list = self.db_manager.find_film_by_name(wiki_title)
         if not film_list:
             info = await self.scraper.lookup(wiki_title, normalize=False)
-            inserted_film_id = self.db_manager.insert_film(
-                info.title,
-                info.genre,
-                info.year,
-                info.links,
-                info.info,
-                info.rate,
-                info.poster
-            )
+            inserted_film_id = self.db_manager.insert_film(info)
             await self.reply_and_create_request(message, info, film_id=inserted_film_id, user_id=user_id)
             return
 
@@ -65,15 +55,15 @@ class CinemaBot:
         film_id = int(film[0])
         requests = self.db_manager.find_requests_by_film_id_and_user_id(film_id, user_id)
         if not requests:  # Film could have been added by another user
-            info = FilmInfo(
-                title=film[1],
-                genre=film[2],
-                year=film[3],
-                links=film[4],
-                info=film[5],
-                rate=film[6],
-                poster=film[7]
-            )
+            info = {
+                "title": film[1],
+                "genre": film[2],
+                "year": film[3],
+                "links": film[4],
+                "info": film[5],
+                "rate": film[6],
+                "poster": film[7]
+            }
             await self.reply_and_create_request(message, info, film_id=film_id, user_id=user_id)
         else:
             request = requests[0]
@@ -87,7 +77,7 @@ class CinemaBot:
             )
             await self.bot.forward_message(chat_id, chat_id, message_id)
 
-    async def reply_and_create_request(self, message: Message, info: FilmInfo, film_id: int, user_id: int):
+    async def reply_and_create_request(self, message: Message, info: dict[str, str | None], film_id: int, user_id: int):
         result_message = await message.answer(FindCommandUtils.make_find_reply(info))
         self.db_manager.insert_request(
             film_id,
