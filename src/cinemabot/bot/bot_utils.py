@@ -3,7 +3,9 @@ import re
 import typing as tp
 
 from aiogram.types import Message
-from aiogram.utils.markdown import hbold
+from aiogram.utils.markdown import hbold, hlink
+
+from cinemabot.scraper.scraper import FilmInfo
 
 
 # TODO Сделать протокол
@@ -18,8 +20,8 @@ class StartCommandUtils:
 
 class FindCommandUtils:
     @staticmethod
-    def make_find_reply(message: Message) -> str:
-        return "Nothing to show"
+    def make_find_reply(info: FilmInfo) -> str:
+        return ", ".join(info.data)
 
 
 class HelpCommandUtils:
@@ -60,9 +62,27 @@ class HelpCommandUtils:
         return message.removesuffix("\n\n")
 
 
+class HistoryCommandUtils:
+
+    @staticmethod
+    def make_history_reply(data: list[tuple], limit: int) -> str:
+        if not data:
+            return "История запросов пуста."
+
+        reply = f"Последние запросы (лимит {limit}):\n"
+        number = 1
+        for name, year, message_id in data:
+            name_year_formated = f"{name}({year})"
+            post_command = f"/give_{message_id}"
+            reply += f"{number}. {name_year_formated} {post_command}\n"
+            number += 1
+
+        return reply
+
+
 class ErrorUtils:
     DEFAULT_REPLY = "Что-то пошло не так. Попробуй еще раз."
 
     @staticmethod
-    def make_type_mismatch_reply(right_type: str):
+    def make_i_expected_reply(right_type: str):
         return f"Я ожидал {right_type.lower()}."

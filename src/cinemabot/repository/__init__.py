@@ -1,1 +1,1 @@
-from cinemabot.repository.db_connector import DBConnector
+from cinemabot.repository.db_manager import DBManager
