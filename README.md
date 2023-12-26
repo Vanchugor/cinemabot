@@ -1,2 +1,2 @@
 # where-to-watch bot
-A bot for Python course
+A Telegram bot for convenient search of online-cinemas.
